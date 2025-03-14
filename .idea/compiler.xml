@@ -12,7 +12,9 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="childcare.childcare.main" target="17" />
       <module name="childcare.childcare.main~1" target="17" />
+      <module name="childcare.childcare.test" target="17" />
       <module name="childcare.childcare.test~1" target="17" />
     </bytecodeTargetLevel>
   </component>
