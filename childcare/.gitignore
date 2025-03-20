@@ -35,26 +35,3 @@ out/
 
 ### VS Code ###
 .vscode/
-
-# Flutter/Dart
-**/build/
-**/.dart_tool/
-**/.flutter-plugins
-**/.flutter-plugins-dependencies
-**/pubspec.lock
-**/.packages
-**/.pub/
-
-# Spring Boot
-**/target/
-**/.gradle/
-**/.idea/
-**/*.iml
-**/out/
-**/build/
-**/.settings/
-**/.classpath
-**/.project
-**/bin/
-**/logs/
-**/.DS_Store

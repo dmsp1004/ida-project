@@ -1,4 +1,4 @@
-package com.ida.childcare.security;
+package com.ida.childcare.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

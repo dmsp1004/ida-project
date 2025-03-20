@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -119,12 +121,25 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               // 로그인 버튼
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
-                    // 로그인 로직 구현 (향후)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('로그인 기능 구현 예정입니다')),
+                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                    final success = await authProvider.register(
+                      _emailController.text.trim(),
+                      _passwordController.text,
+                      _phoneController.text.trim(),
+                      _selectedUserType,
                     );
+                    
+                    if (success) {
+                      // 회원가입 성공 시 홈 화면으로 이동
+                      Navigator.pushReplacementNamed(context, '/home');
+                    } else {
+                      // 에러 메시지 표시
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(authProvider.errorMessage ?? '회원가입에 실패했습니다.')),
+                      );
+                    }
                   }
                 },
                 style: ElevatedButton.styleFrom(

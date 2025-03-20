@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'screens/home_screen.dart'; // 아직 생성하지 않은 파일
 
 void main() {
-  runApp(const IdaApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const IdaApp(),
+    ),
+  );
 }
 
 class IdaApp extends StatelessWidget {
