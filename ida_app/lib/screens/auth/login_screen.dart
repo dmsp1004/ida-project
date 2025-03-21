@@ -124,20 +124,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                    final success = await authProvider.register(
+                    final success = await authProvider.login(
                       _emailController.text.trim(),
                       _passwordController.text,
-                      _phoneController.text.trim(),
-                      _selectedUserType,
                     );
                     
                     if (success) {
-                      // 회원가입 성공 시 홈 화면으로 이동
+                      // 로그인 성공 시 홈 화면으로 이동
                       Navigator.pushReplacementNamed(context, '/home');
                     } else {
                       // 에러 메시지 표시
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(authProvider.errorMessage ?? '회원가입에 실패했습니다.')),
+                        SnackBar(content: Text(authProvider.errorMessage ?? '로그인에 실패했습니다.')),
                       );
                     }
                   }
