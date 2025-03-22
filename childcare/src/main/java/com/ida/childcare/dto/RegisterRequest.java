@@ -11,5 +11,5 @@ public class RegisterRequest {
     private String email;
     private String password;
     private String phoneNumber;
-    private String userType; // "PARENT" 또는 "SITTER"
+    private String userType; // "PARENT", "SITTER", "ADMIN"
 }

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아이다 API 테스트</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3b77db;
+        }
+        .response {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .success {
+            color: #388e3c;
+        }
+    </style>
+</head>
+<body>
+<h1>아이다 API 테스트</h1>
+
+<div class="container">
+    <h2>로그인 테스트</h2>
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="loginEmail">이메일</label>
+            <input type="email" id="loginEmail" required placeholder="admin@ida.com">
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">비밀번호</label>
+            <input type="password" id="loginPassword" required placeholder="비밀번호">
+        </div>
+        <button type="submit">로그인</button>
+    </form>
+    <div id="loginResponse" class="response" style="display: none;"></div>
+</div>
+
+<div class="container">
+    <h2>회원가입 테스트</h2>
+    <form id="registerForm">
+        <div class="form-group">
+            <label for="registerEmail">이메일</label>
+            <input type="email" id="registerEmail" required placeholder="이메일">
+        </div>
+        <div class="form-group">
+            <label for="registerPassword">비밀번호</label>
+            <input type="password" id="registerPassword" required placeholder="비밀번호 (6자 이상)">
+        </div>
+        <div class="form-group">
+            <label for="registerPhone">전화번호</label>
+            <input type="tel" id="registerPhone" required placeholder="010-1234-5678">
+        </div>
+        <div class="form-group">
+            <label>회원 유형</label>
+            <div>
+                <label style="display: inline;">
+                    <input type="radio" name="userType" value="PARENT" checked> 부모
+                </label>
+                <label style="display: inline; margin-left: 20px;">
+                    <input type="radio" name="userType" value="SITTER"> 시터
+                </label>
+            </div>
+        </div>
+        <button type="submit">회원가입</button>
+    </form>
+    <div id="registerResponse" class="response" style="display: none;"></div>
+</div>
+
+<script>
+    // API 기본 URL (Spring Boot 서버 주소로 변경 필요)
+    const API_URL = 'http://localhost:8085/api';
+
+    // 로그인 폼 제출 이벤트 처리
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const responseDiv = document.getElementById('loginResponse');
+
+        try {
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+            responseDiv.style.display = 'block';
+
+            if (response.ok) {
+                responseDiv.innerHTML = `
+                        <p class="success">로그인 성공!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                // 토큰 저장 (필요 시)
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userRole', data.role);
+            } else {
+                responseDiv.innerHTML = `
+                        <p class="error">로그인 실패: ${data.message || '알 수 없는 오류'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+            }
+        } catch (error) {
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = `
+                    <p class="error">오류 발생: ${error.message}</p>
+                `;
+        }
+    });
+
+    // 회원가입 폼 제출 이벤트 처리
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const phone = document.getElementById('registerPhone').value;
+        const userType = document.querySelector('input[name="userType"]:checked').value;
+        const responseDiv = document.getElementById('registerResponse');
+
+        try {
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    phoneNumber: phone,
+                    userType: userType // 또는 role 등 서버에서 요구하는 필드명 사용
+                })
+            });
+
+            const data = await response.json();
+            responseDiv.style.display = 'block';
+
+            if (response.ok) {
+                responseDiv.innerHTML = `
+                        <p class="success">회원가입 성공!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                // 토큰 저장 (필요 시)
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userRole', data.role);
+            } else {
+                responseDiv.innerHTML = `
+                        <p class="error">회원가입 실패: ${data.message || '알 수 없는 오류'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+            }
+        } catch (error) {
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = `
+                    <p class="error">오류 발생: ${error.message}</p>
+                `;
+        }
+    });
+</script>
+</body>
+</html>

@@ -41,6 +41,11 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
 
+    public String generateToken(String email) {
+        Map<String, Object> claims = new HashMap<>();
+        return createToken(claims, email);
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts
                 .parserBuilder()
