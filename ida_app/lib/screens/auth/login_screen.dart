@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ida_app/providers/auth_provider.dart';
+import 'package:http/http.dart' as http; // http 패키지 추가
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert'; // JSON 인코딩/디코딩을 위한 패키지 추가
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -22,10 +25,55 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // API 테스트 함수 추가
+  Future<void> _testApiConnection() async {
+    try {
+      // 테스트할 이메일과 비밀번호
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      if (email.isEmpty || password.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('이메일과 비밀번호를 입력해주세요')));
+        return;
+      }
+
+      // final url = 'http://10.0.2.2:8085/api/auth/login';
+      final url = 'http://localhost:8085/api/auth/login';
+      print('API 요청 URL: $url');
+      print('요청 데이터: email=$email, password=$password');
+
+      // HTTP 요청 직접 테스트
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      );
+
+      print('응답 상태 코드: ${response.statusCode}');
+      print('응답 헤더: ${response.headers}');
+      print('응답 본문: ${response.body}');
+
+      // 응답 데이터 표시
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '응답: ${response.statusCode} - ${response.body.length > 100 ? '${response.body.substring(0, 100)}...' : response.body}',
+          ),
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    } catch (e) {
+      print('API 테스트 오류: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('오류 발생: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-
     return Scaffold(
       appBar: AppBar(title: const Text('로그인')),
       body: SingleChildScrollView(
@@ -115,9 +163,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: TextButton(
                   onPressed: () {
                     // 비밀번호 찾기 화면으로 이동
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('비밀번호 찾기 기능 구현 예정입니다')),
-                    );
                   },
                   child: const Text('비밀번호 찾기'),
                 ),
@@ -125,42 +170,58 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               // 로그인 버튼
               ElevatedButton(
-                onPressed:
-                    authProvider.isLoading
-                        ? null // 로딩 중일 때는 버튼 비활성화
-                        : () async {
-                          if (_formKey.currentState!.validate()) {
-                            final success = await authProvider.login(
-                              _emailController.text.trim(),
-                              _passwordController.text,
-                            );
+                onPressed: () async {
+                  if (_formKey.currentState!.validate()) {
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final success = await authProvider.login(
+                      _emailController.text.trim(),
+                      _passwordController.text,
+                    );
 
-                            if (success) {
-                              // 로그인 성공 시 홈 화면으로 이동
-                              Navigator.pushReplacementNamed(context, '/home');
-                            } else {
-                              // 에러 메시지 표시
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    authProvider.errorMessage ?? '로그인에 실패했습니다.',
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        },
+                    if (success) {
+                      // 로그인 성공 시 홈 화면으로 이동
+                      Navigator.pushReplacementNamed(context, '/home');
+                    } else {
+                      // 에러 메시지 표시
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            authProvider.errorMessage ?? '로그인에 실패했습니다.',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child:
-                    authProvider.isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('로그인', style: TextStyle(fontSize: 16)),
+                child: const Text('로그인', style: TextStyle(fontSize: 16)),
               ),
+
+              // API 테스트 버튼 추가
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _testApiConnection,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: Colors.amber,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'API 직접 테스트',
+                  style: TextStyle(fontSize: 16, color: Colors.black),
+                ),
+              ),
+
               const SizedBox(height: 16),
               // 소셜 로그인 섹션
               const Row(

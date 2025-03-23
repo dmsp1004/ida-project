@@ -3,14 +3,12 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
-import 'screens/home_screen.dart'; // 아직 생성하지 않은 파일
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
       child: const IdaApp(),
     ),
   );
@@ -31,6 +29,7 @@ class IdaApp extends StatelessWidget {
         '/': (context) => const HomePage(),
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(), // 홈 화면 라우트 추가
       },
       initialRoute: '/',
     );
@@ -43,9 +42,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('아이다 (IDA)'),
-      ),
+      appBar: AppBar(title: const Text('아이다 (IDA)')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -55,10 +52,7 @@ class HomePage extends StatelessWidget {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            const Text(
-              '아이 돌봄 매칭 플랫폼',
-              style: TextStyle(fontSize: 16),
-            ),
+            const Text('아이 돌봄 매칭 플랫폼', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () {
