@@ -72,6 +72,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // 사용자 유형에 따라 적절한 화면으로 이동하는 함수
+  void _navigateBasedOnUserType(String userType) {
+    switch (userType) {
+      case 'PARENT':
+        Navigator.pushReplacementNamed(context, '/parent_home');
+        break;
+      case 'SITTER':
+        Navigator.pushReplacementNamed(context, '/sitter_home');
+        break;
+      case 'ADMIN':
+        Navigator.pushReplacementNamed(context, '/admin_home');
+        break;
+      default:
+        // 기본값으로 일반 홈 화면으로 이동
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+    }
+    print('사용자 유형: $userType에 따라 화면 이동');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,8 +202,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
 
                     if (success) {
-                      // 로그인 성공 시 홈 화면으로 이동
-                      Navigator.pushReplacementNamed(context, '/home');
+                      // 사용자 유형에 따라 적절한 화면으로 이동
+                      _navigateBasedOnUserType(
+                        authProvider.userType ?? 'PARENT',
+                      );
                     } else {
                       // 에러 메시지 표시
                       ScaffoldMessenger.of(context).showSnackBar(
