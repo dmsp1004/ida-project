@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소셜 로그인 테스트</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .social-login-btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+        .google-login {
+            background-color: #ffffff;
+            color: #757575;
+            border: 1px solid #dddddd;
+        }
+        .google-login:hover {
+            background-color: #f1f1f1;
+        }
+        .kakao-login {
+            background-color: #FEE500;
+            color: #000000;
+        }
+        .kakao-login:hover {
+            background-color: #F2D900;
+        }
+        .naver-login {
+            background-color: #03C75A;
+            color: #ffffff;
+        }
+        .naver-login:hover {
+            background-color: #02a64a;
+        }
+        .logo {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .result-container {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            text-align: left;
+            display: none;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+<h1>소셜 로그인 테스트</h1>
+
+<div class="login-container">
+    <a href="/oauth2/authorization/google" class="social-login-btn google-login">
+        <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" class="logo">
+        Google 로그인
+    </a>
+
+    <a href="/oauth2/authorization/kakao" class="social-login-btn kakao-login">
+        <img src="https://cdn-icons-png.flaticon.com/512/3669/3669973.png" alt="Kakao" class="logo">
+        카카오 로그인
+    </a>
+
+    <a href="/oauth2/authorization/naver" class="social-login-btn naver-login">
+        <img src="https://play-lh.googleusercontent.com/jYtnK__ibJh9emQKLYkK-OPUjkPZXpsFjHHdBL23-ultP1DNzb1L5VBOAKYYpAdO9Q" alt="Naver" class="logo">
+        네이버 로그인
+    </a>
+</div>
+
+<div id="result" class="result-container">
+    <h3>로그인 결과</h3>
+    <pre id="resultData"></pre>
+</div>
+
+<script>
+    // URL에서 토큰 정보 파싱
+    document.addEventListener('DOMContentLoaded', function() {
+        // URL 파라미터 또는 해시에서 토큰 정보를 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+        // 토큰 정보 확인
+        const token = urlParams.get('token') || hashParams.get('token');
+
+        if (token) {
+            const resultContainer = document.getElementById('result');
+            const resultData = document.getElementById('resultData');
+
+            resultContainer.style.display = 'block';
+
+            // 토큰 정보 표시
+            const tokenInfo = {
+                token: token,
+                userId: urlParams.get('userId') || hashParams.get('userId'),
+                email: urlParams.get('email') || hashParams.get('email'),
+                role: urlParams.get('role') || hashParams.get('role')
+            };
+
+            resultData.textContent = JSON.stringify(tokenInfo, null, 2);
+
+            // localStorage에 토큰 저장 (실제 애플리케이션에서 사용할 경우)
+            localStorage.setItem('authToken', token);
+        }
+    });
+</script>
+</body>
+</html>

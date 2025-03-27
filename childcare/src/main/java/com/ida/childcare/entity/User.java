@@ -43,6 +43,12 @@ public class User {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Column(name = "provider")
+    private String provider; // "KAKAO", "GOOGLE", "NAVER", "LOCAL"
+
+    @Column(name = "provider_id")
+    private String providerId;
+
     public enum UserType {
         PARENT, SITTER, ADMIN
     }
