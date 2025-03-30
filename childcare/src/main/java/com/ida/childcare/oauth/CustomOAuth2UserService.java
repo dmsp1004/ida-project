@@ -28,6 +28,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        System.out.println("OAuth2 로그인 요청: " + userRequest.getClientRegistration().getRegistrationId());
         OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
         OAuth2User oAuth2User = delegate.loadUser(userRequest);
 
@@ -47,6 +48,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         User user = saveOrUpdate(attributes, registrationId);
 
+        System.out.println("사용자 정보: " + attributes);
+        System.out.println("사용자 저장/업데이트 결과: " + user);
+
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority(user.getUserType().name())),
                 attributes.getAttributes(),
@@ -55,19 +59,18 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     }
 
     private User saveOrUpdate(OAuthAttributes attributes, String provider) {
-        User user = userRepository.findByEmailAndProvider(attributes.getEmail(), provider)
+        // 이메일로만 사용자 찾기
+        User user = userRepository.findByEmail(attributes.getEmail())
                 .orElse(null);
 
         if (user == null) {
-            // 신규 사용자면 기본적으로 PARENT로 가입
+            // 신규 사용자 생성 로직
             user = new Parent();
-            // 이메일 설정
             user.setEmail(attributes.getEmail());
-            // 소셜 정보 설정
-            user.setProvider(provider);
-            user.setProviderId(attributes.getNameAttributeKey());
+            // 비밀번호 설정
+            user.setPassword("OAUTH2_" + UUID.randomUUID().toString());
 
-            // userType 설정 (리플렉션 이용)
+            // userType 설정
             try {
                 Field userTypeField = User.class.getDeclaredField("userType");
                 userTypeField.setAccessible(true);
@@ -76,6 +79,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 throw new RuntimeException("사용자 유형 설정 실패", e);
             }
         }
+
+        // 소셜 로그인 정보 업데이트 (기존 사용자도 업데이트)
+        user.setProvider(provider);
+        user.setProviderId(attributes.getNameAttributeKey());
 
         return userRepository.save(user);
     }

@@ -43,16 +43,24 @@ public class OAuthAttributes {
     }
 
     private static OAuthAttributes ofKakao(String userNameAttributeName, Map<String, Object> attributes) {
-        // kakao는 kakao_account에 유저정보가 있음
+        // 카카오는 kakao_account 안에 profile이 있고, 그 안에 필요한 정보가 있음
         Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-        Map<String, Object> kakaoProfile = (Map<String, Object>) kakaoAccount.get("profile");
+        Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+
+        // 이메일 가져오기
+        String email = (String) kakaoAccount.get("email");
+
+        // 이메일이 null이면 임의의 이메일 생성 (선택적)
+        if (email == null) {
+            // 카카오 ID를 이용하여 임의 이메일 생성
+            Long id = (Long) attributes.get("id");
+            email = "kakao_" + id + "@example.com";
+        }
 
         return OAuthAttributes.builder()
-                .name((String) kakaoProfile.get("nickname"))
-                .email((String) kakaoAccount.get("email"))
-                .picture((String) kakaoProfile.get("profile_image_url"))
-                .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
+                .email(email)
+                .attributes(attributes)
                 .build();
     }
 

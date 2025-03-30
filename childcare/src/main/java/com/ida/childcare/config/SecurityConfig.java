@@ -76,7 +76,9 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )
-                        .successHandler(oAuth2LoginSuccessHandler)
+                        .successHandler((request, response, authentication) -> {
+                            response.sendRedirect("/");  // 홈페이지로 리다이렉트
+                        })
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
