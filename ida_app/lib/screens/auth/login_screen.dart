@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http; // http 패키지 추가
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:convert'; // JSON 인코딩/디코딩을 위한 패키지 추가
 import '../../providers/auth_provider.dart';
+import 'package:uni_links/uni_links.dart';
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -17,59 +16,90 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  StreamSubscription? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinkListener();
+  }
+
+  // 딥링크 리스너 초기화
+  Future<void> _initDeepLinkListener() async {
+    // 앱이 실행 중일 때 딥링크 수신 리스너
+    _linkSubscription = uriLinkStream.listen(
+      (Uri? uri) {
+        if (uri != null) {
+          _handleIncomingLink(uri);
+        }
+      },
+      onError: (err) {
+        print('딥링크 에러: $err');
+      },
+    );
+
+    // 앱이 실행되지 않은 상태에서 딥링크로 열렸을 때
+    try {
+      final initialUri = await getInitialUri();
+      if (initialUri != null) {
+        _handleIncomingLink(initialUri);
+      }
+    } catch (e) {
+      print('초기 딥링크 에러: $e');
+    }
+  }
+
+  // 딥링크 처리
+  void _handleIncomingLink(Uri uri) {
+    print('딥링크 수신: $uri');
+
+    // OAuth 콜백 URL 처리
+    if (uri.path.contains('/oauth/callback')) {
+      // code와 state 추출
+      final code = uri.queryParameters['code'];
+      final provider =
+          uri.queryParameters['provider'] ?? _getProviderFromPath(uri.path);
+
+      if (code != null && provider != null) {
+        _processSocialLogin(code, provider);
+      }
+    }
+  }
+
+  // URL 경로에서 제공자 추출
+  String? _getProviderFromPath(String path) {
+    final parts = path.split('/');
+    for (final provider in ['google', 'kakao', 'naver']) {
+      if (parts.contains(provider)) {
+        return provider;
+      }
+    }
+    return null;
+  }
+
+  // 소셜 로그인 처리
+  Future<void> _processSocialLogin(String code, String provider) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.handleSocialLoginCallback(
+      code,
+      provider,
+    );
+
+    if (success) {
+      _navigateBasedOnUserType(authProvider.userType ?? 'PARENT');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? '소셜 로그인 처리 실패')),
+      );
+    }
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _linkSubscription?.cancel();
     super.dispose();
-  }
-
-  // API 테스트 함수 추가
-  Future<void> _testApiConnection() async {
-    try {
-      // 테스트할 이메일과 비밀번호
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
-
-      if (email.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('이메일과 비밀번호를 입력해주세요')));
-        return;
-      }
-
-      // final url = 'http://10.0.2.2:8085/api/auth/login';
-      final url = 'http://localhost:8085/api/auth/login';
-      print('API 요청 URL: $url');
-      print('요청 데이터: email=$email, password=$password');
-
-      // HTTP 요청 직접 테스트
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': email, 'password': password}),
-      );
-
-      print('응답 상태 코드: ${response.statusCode}');
-      print('응답 헤더: ${response.headers}');
-      print('응답 본문: ${response.body}');
-
-      // 응답 데이터 표시
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '응답: ${response.statusCode} - ${response.body.length > 100 ? '${response.body.substring(0, 100)}...' : response.body}',
-          ),
-          duration: const Duration(seconds: 10),
-        ),
-      );
-    } catch (e) {
-      print('API 테스트 오류: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('오류 발생: $e')));
-    }
   }
 
   // 사용자 유형에 따라 적절한 화면으로 이동하는 함수
@@ -85,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/admin_home');
         break;
       default:
-        // 기본값으로 일반 홈 화면으로 이동
         Navigator.pushReplacementNamed(context, '/home');
         break;
     }
@@ -94,6 +123,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('로그인')),
       body: SingleChildScrollView(
@@ -183,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: TextButton(
                   onPressed: () {
                     // 비밀번호 찾기 화면으로 이동
+                    Navigator.pushNamed(context, '/forgot_password');
                   },
                   child: const Text('비밀번호 찾기'),
                 ),
@@ -190,58 +222,43 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               // 로그인 버튼
               ElevatedButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    final authProvider = Provider.of<AuthProvider>(
-                      context,
-                      listen: false,
-                    );
-                    final success = await authProvider.login(
-                      _emailController.text.trim(),
-                      _passwordController.text,
-                    );
+                onPressed:
+                    authProvider.isLoading
+                        ? null
+                        : () async {
+                          if (_formKey.currentState!.validate()) {
+                            final success = await authProvider.login(
+                              _emailController.text.trim(),
+                              _passwordController.text,
+                            );
 
-                    if (success) {
-                      // 사용자 유형에 따라 적절한 화면으로 이동
-                      _navigateBasedOnUserType(
-                        authProvider.userType ?? 'PARENT',
-                      );
-                    } else {
-                      // 에러 메시지 표시
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            authProvider.errorMessage ?? '로그인에 실패했습니다.',
-                          ),
-                        ),
-                      );
-                    }
-                  }
-                },
+                            if (success) {
+                              _navigateBasedOnUserType(
+                                authProvider.userType ?? 'PARENT',
+                              );
+                            } else {
+                              // 에러 메시지가 이미 설정되어 있어야 함
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    authProvider.errorMessage ?? '로그인에 실패했습니다.',
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('로그인', style: TextStyle(fontSize: 16)),
-              ),
-
-              // API 테스트 버튼 추가
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _testApiConnection,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  backgroundColor: Colors.amber,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'API 직접 테스트',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
-                ),
+                child:
+                    authProvider.isLoading
+                        ? const CircularProgressIndicator()
+                        : const Text('로그인', style: TextStyle(fontSize: 16)),
               ),
 
               const SizedBox(height: 16),
@@ -262,19 +279,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildSocialLoginButton(
-                    icon: Icons.chat_bubble,
+                    icon: 'assets/icons/kakao.png',
                     color: Colors.yellow.shade700,
                     label: '카카오',
+                    provider: 'kakao',
+                    isLoading: authProvider.isLoading,
                   ),
                   _buildSocialLoginButton(
-                    icon: Icons.language,
+                    icon: 'assets/icons/naver.png',
                     color: Colors.green.shade600,
                     label: '네이버',
+                    provider: 'naver',
+                    isLoading: authProvider.isLoading,
                   ),
                   _buildSocialLoginButton(
-                    icon: Icons.g_mobiledata,
-                    color: Colors.red.shade400,
+                    icon: 'assets/icons/google.png',
+                    color: Colors.white,
                     label: '구글',
+                    provider: 'google',
+                    isLoading: authProvider.isLoading,
                   ),
                 ],
               ),
@@ -300,22 +323,43 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildSocialLoginButton({
-    required IconData icon,
+    required String icon,
     required Color color,
     required String label,
+    required String provider,
+    required bool isLoading,
   }) {
     return Column(
       children: [
-        IconButton(
-          onPressed: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('$label 로그인 기능 구현 예정입니다')));
-          },
-          icon: Icon(icon, color: Colors.white),
-          style: IconButton.styleFrom(
-            backgroundColor: color,
-            padding: const EdgeInsets.all(12),
+        InkWell(
+          onTap:
+              isLoading
+                  ? null
+                  : () async {
+                    final authProvider = Provider.of<AuthProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await authProvider.socialLogin(provider);
+                  },
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Image.asset(icon),
+            ),
           ),
         ),
         const SizedBox(height: 4),
