@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'package:uni_links/uni_links.dart';
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' if (dart.library.io) 'dart:ui' show window;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -17,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   StreamSubscription? _linkSubscription;
+  bool _processingLogin = false; // Flag to prevent multiple login attempts
 
   @override
   void initState() {
@@ -24,24 +27,46 @@ class _LoginScreenState extends State<LoginScreen> {
     _initDeepLinkListener();
   }
 
-  // 딥링크 리스너 초기화
+  // 딥링크 리스너 초기화 (웹 호환)
   Future<void> _initDeepLinkListener() async {
-    // 앱이 실행 중일 때 딥링크 수신 리스너
-    _linkSubscription = uriLinkStream.listen(
-      (Uri? uri) {
-        if (uri != null) {
-          _handleIncomingLink(uri);
-        }
-      },
-      onError: (err) {
-        print('딥링크 에러: $err');
-      },
-    );
+    // 웹 환경인 경우 다른 방식으로 처리
+    if (kIsWeb) {
+      try {
+        // 현재 URL 확인하여 OAuth 콜백 파라미터 추출
+        final href = Uri.base.toString();
+        print('현재 웹 URL: $href');
+        final currentUri = Uri.parse(href);
 
-    // 앱이 실행되지 않은 상태에서 딥링크로 열렸을 때
+        if (currentUri.path.contains('/oauth/callback') ||
+            currentUri.queryParameters.containsKey('code')) {
+          print('웹 환경에서 OAuth 콜백 감지: ${currentUri.toString()}');
+          _handleIncomingLink(currentUri);
+        }
+      } catch (e) {
+        print('웹 딥링크 처리 오류: $e');
+      }
+      return;
+    }
+
+    // 모바일 환경에서는 기존 코드 사용
     try {
+      // 앱이 실행 중일 때 딥링크 수신 리스너
+      _linkSubscription = uriLinkStream.listen(
+        (Uri? uri) {
+          if (uri != null && mounted) {
+            print('모바일 딥링크 수신: $uri');
+            _handleIncomingLink(uri);
+          }
+        },
+        onError: (err) {
+          print('딥링크 에러: $err');
+        },
+      );
+
+      // 앱이 실행되지 않은 상태에서 딥링크로 열렸을 때
       final initialUri = await getInitialUri();
-      if (initialUri != null) {
+      if (initialUri != null && mounted) {
+        print('초기 딥링크 수신: $initialUri');
         _handleIncomingLink(initialUri);
       }
     } catch (e) {
@@ -51,51 +76,98 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 딥링크 처리
   void _handleIncomingLink(Uri uri) {
-    print('딥링크 수신: $uri');
+    print('딥링크 처리 시작: $uri');
+
+    // 이미 처리 중이라면 중복 처리 방지
+    if (_processingLogin) {
+      print('이미 로그인 처리 중입니다.');
+      return;
+    }
+    _processingLogin = true;
 
     // OAuth 콜백 URL 처리
-    if (uri.path.contains('/oauth/callback')) {
+    if (uri.path.contains('/oauth/callback') ||
+        uri.queryParameters.containsKey('code')) {
       // code와 state 추출
       final code = uri.queryParameters['code'];
       final provider =
           uri.queryParameters['provider'] ?? _getProviderFromPath(uri.path);
 
       if (code != null && provider != null) {
+        print('OAuth 콜백 감지 - 코드: $code, 제공자: $provider');
         _processSocialLogin(code, provider);
+      } else {
+        print('OAuth 콜백 파라미터 누락 - 코드: $code, 제공자: $provider');
+        _processingLogin = false;
       }
+    } else {
+      print('OAuth 콜백 URL이 아닙니다: $uri');
+      _processingLogin = false;
     }
   }
 
   // URL 경로에서 제공자 추출
   String? _getProviderFromPath(String path) {
+    print('URL 경로에서 제공자 추출 시도: $path');
     final parts = path.split('/');
     for (final provider in ['google', 'kakao', 'naver']) {
       if (parts.contains(provider)) {
+        print('제공자 감지: $provider');
         return provider;
       }
     }
+
+    // 경로에서 찾지 못한 경우 URL의 다른 부분에서 검색
+    if (path.contains('google')) return 'google';
+    if (path.contains('kakao')) return 'kakao';
+    if (path.contains('naver')) return 'naver';
+
+    print('제공자를 찾을 수 없습니다');
     return null;
   }
 
   // 소셜 로그인 처리
   Future<void> _processSocialLogin(String code, String provider) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.handleSocialLoginCallback(
-      code,
-      provider,
-    );
-
-    if (success) {
-      _navigateBasedOnUserType(authProvider.userType ?? 'PARENT');
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? '소셜 로그인 처리 실패')),
+    print('소셜 로그인 처리 시작 - 코드: $code, 제공자: $provider');
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.handleSocialLoginCallback(
+        code,
+        provider,
       );
+
+      if (success && mounted) {
+        print('소셜 로그인 성공: ${authProvider.userType}');
+        _navigateBasedOnUserType(authProvider.userType ?? 'PARENT');
+      } else if (mounted) {
+        print('소셜 로그인 실패: ${authProvider.errorMessage}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? '소셜 로그인 처리 실패')),
+        );
+      }
+    } catch (e) {
+      print('소셜 로그인 처리 예외: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('로그인 처리 중 오류가 발생했습니다: $e')));
+      }
+    } finally {
+      // 항상 플래그 리셋
+      if (mounted) {
+        setState(() {
+          _processingLogin = false;
+        });
+      } else {
+        _processingLogin = false;
+      }
+      print('소셜 로그인 처리 완료');
     }
   }
 
   @override
   void dispose() {
+    print('LoginScreen dispose');
     _emailController.dispose();
     _passwordController.dispose();
     _linkSubscription?.cancel();
@@ -104,21 +176,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 사용자 유형에 따라 적절한 화면으로 이동하는 함수
   void _navigateBasedOnUserType(String userType) {
+    if (!mounted) return;
+    print('유형에 따른 화면 이동 시작: $userType');
+
+    // pushReplacementNamed 대신 pushNamedAndRemoveUntil 사용
+    // 이전 라우트를 모두 제거하여 백 버튼 동작 방지
     switch (userType) {
       case 'PARENT':
-        Navigator.pushReplacementNamed(context, '/parent_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/parent_home',
+          (route) => false,
+        );
         break;
       case 'SITTER':
-        Navigator.pushReplacementNamed(context, '/sitter_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/sitter_home',
+          (route) => false,
+        );
         break;
       case 'ADMIN':
-        Navigator.pushReplacementNamed(context, '/admin_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/admin_home',
+          (route) => false,
+        );
         break;
       default:
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         break;
     }
-    print('사용자 유형: $userType에 따라 화면 이동');
+    print('사용자 유형: $userType에 따라 화면 이동 완료');
   }
 
   @override
@@ -223,29 +312,54 @@ class _LoginScreenState extends State<LoginScreen> {
               // 로그인 버튼
               ElevatedButton(
                 onPressed:
-                    authProvider.isLoading
+                    authProvider.isLoading || _processingLogin
                         ? null
                         : () async {
                           if (_formKey.currentState!.validate()) {
-                            final success = await authProvider.login(
-                              _emailController.text.trim(),
-                              _passwordController.text,
-                            );
+                            setState(() {
+                              _processingLogin = true; // 로그인 처리 중 플래그 설정
+                            });
+                            try {
+                              print(
+                                '이메일 로그인 시도: ${_emailController.text.trim()}',
+                              );
+                              final success = await authProvider.login(
+                                _emailController.text.trim(),
+                                _passwordController.text,
+                              );
 
-                            if (success) {
-                              _navigateBasedOnUserType(
-                                authProvider.userType ?? 'PARENT',
-                              );
-                            } else {
-                              // 에러 메시지가 이미 설정되어 있어야 함
-                              if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    authProvider.errorMessage ?? '로그인에 실패했습니다.',
+                              if (success && mounted) {
+                                print('로그인 성공: ${authProvider.userType}');
+                                _navigateBasedOnUserType(
+                                  authProvider.userType ?? 'PARENT',
+                                );
+                              } else if (mounted) {
+                                print('로그인 실패: ${authProvider.errorMessage}');
+                                // 에러 메시지가 이미 설정되어 있어야 함
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      authProvider.errorMessage ??
+                                          '로그인에 실패했습니다.',
+                                    ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
+                            } catch (e) {
+                              print('로그인 예외 발생: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('로그인 처리 중 오류: $e')),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _processingLogin = false; // 플래그 리셋
+                                });
+                              } else {
+                                _processingLogin = false;
+                              }
                             }
                           }
                         },
@@ -256,7 +370,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 child:
-                    authProvider.isLoading
+                    authProvider.isLoading || _processingLogin
                         ? const CircularProgressIndicator()
                         : const Text('로그인', style: TextStyle(fontSize: 16)),
               ),
@@ -279,25 +393,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildSocialLoginButton(
-                    icon: 'assets/icons/kakao.png',
+                    iconData: Icons.chat_bubble,
                     color: Colors.yellow.shade700,
                     label: '카카오',
                     provider: 'kakao',
-                    isLoading: authProvider.isLoading,
+                    isLoading: authProvider.isLoading || _processingLogin,
                   ),
                   _buildSocialLoginButton(
-                    icon: 'assets/icons/naver.png',
+                    iconData: Icons.edit,
                     color: Colors.green.shade600,
                     label: '네이버',
                     provider: 'naver',
-                    isLoading: authProvider.isLoading,
+                    isLoading: authProvider.isLoading || _processingLogin,
                   ),
                   _buildSocialLoginButton(
-                    icon: 'assets/icons/google.png',
+                    iconData: Icons.g_mobiledata,
                     color: Colors.white,
                     label: '구글',
                     provider: 'google',
-                    isLoading: authProvider.isLoading,
+                    isLoading: authProvider.isLoading || _processingLogin,
                   ),
                 ],
               ),
@@ -323,7 +437,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildSocialLoginButton({
-    required String icon,
+    required IconData iconData,
     required Color color,
     required String label,
     required String provider,
@@ -336,11 +450,35 @@ class _LoginScreenState extends State<LoginScreen> {
               isLoading
                   ? null
                   : () async {
-                    final authProvider = Provider.of<AuthProvider>(
-                      context,
-                      listen: false,
-                    );
-                    await authProvider.socialLogin(provider);
+                    if (_processingLogin) return;
+
+                    setState(() {
+                      _processingLogin = true;
+                    });
+
+                    try {
+                      print('소셜 로그인 시도: $provider');
+                      final authProvider = Provider.of<AuthProvider>(
+                        context,
+                        listen: false,
+                      );
+                      await authProvider.socialLogin(provider);
+                    } catch (e) {
+                      print('소셜 로그인 요청 오류: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('소셜 로그인 오류: $e')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _processingLogin = false;
+                        });
+                      } else {
+                        _processingLogin = false;
+                      }
+                    }
                   },
           child: Container(
             width: 50,
@@ -356,9 +494,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Image.asset(icon),
+            // 이미지 로드 오류를 해결하기 위해 Icon 위젯으로 대체
+            child: Icon(
+              iconData,
+              color: provider == 'google' ? Colors.blue : Colors.white,
+              size: 30,
             ),
           ),
         ),

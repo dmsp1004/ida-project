@@ -11,6 +11,7 @@ class AuthProvider with ChangeNotifier {
   String? _userType; // 사용자 유형 (PARENT, SITTER, ADMIN)
   String? _errorMessage;
   bool _isLoading = false; // 로딩 상태
+  bool _isAuthenticating = false; // 인증 처리 중인지 여부
 
   // API 서비스 인스턴스
   final ApiService _apiService = ApiService();
@@ -23,9 +24,14 @@ class AuthProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _token != null;
   bool get isLoading => _isLoading; // 로딩 상태 Getter
+  bool get isAuthenticating => _isAuthenticating; // 인증 처리 중 상태 Getter
 
   // 로그인 처리
   Future<bool> login(String email, String password) async {
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return false;
+    _isAuthenticating = true;
+
     _errorMessage = null; // 오류 메시지 초기화
     _isLoading = true; // 로딩 시작
     notifyListeners();
@@ -49,6 +55,7 @@ class AuthProvider with ChangeNotifier {
 
       print('로그인 성공: 유형=$_userType, 이메일=$_email');
       _isLoading = false; // 로딩 종료
+      _isAuthenticating = false; // 인증 처리 완료
       notifyListeners();
       return true;
     } catch (e) {
@@ -56,6 +63,7 @@ class AuthProvider with ChangeNotifier {
       _errorMessage = '로그인 실패: ${e.toString()}';
       print('로그인 예외 발생: $_errorMessage');
       _isLoading = false; // 로딩 종료
+      _isAuthenticating = false; // 인증 처리 완료
       notifyListeners();
       return false;
     }
@@ -63,6 +71,10 @@ class AuthProvider with ChangeNotifier {
 
   // 소셜 로그인 처리
   Future<bool> socialLogin(String provider) async {
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return false;
+    _isAuthenticating = true;
+
     _errorMessage = null;
     _isLoading = true;
     notifyListeners();
@@ -82,6 +94,7 @@ class AuthProvider with ChangeNotifier {
         // 소셜 로그인은 리다이렉트 기반이므로 여기서는 진행 중임을 알림
         _errorMessage = '브라우저에서 $provider 로그인을 완료한 후 앱으로 돌아오세요';
         _isLoading = false;
+        _isAuthenticating = false; // 브라우저로 전환됨
         notifyListeners();
         return false;
       } else {
@@ -90,6 +103,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = '소셜 로그인 실패: ${e.toString()}';
       _isLoading = false;
+      _isAuthenticating = false;
       notifyListeners();
       return false;
     }
@@ -97,6 +111,10 @@ class AuthProvider with ChangeNotifier {
 
   // 소셜 로그인 콜백 처리
   Future<bool> handleSocialLoginCallback(String code, String provider) async {
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return false;
+    _isAuthenticating = true;
+
     _isLoading = true;
     notifyListeners();
 
@@ -116,11 +134,13 @@ class AuthProvider with ChangeNotifier {
       prefs.setString('userType', _userType!);
 
       _isLoading = false;
+      _isAuthenticating = false;
       notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = '소셜 로그인 처리 실패: ${e.toString()}';
       _isLoading = false;
+      _isAuthenticating = false;
       notifyListeners();
       return false;
     }
@@ -128,32 +148,53 @@ class AuthProvider with ChangeNotifier {
 
   // 자동 로그인 시도
   Future<bool> tryAutoLogin() async {
-    final prefs = await SharedPreferences.getInstance();
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return false;
+    if (isAuthenticated) return true; // 이미 로그인 상태면 중복 확인 방지
 
-    // 저장된 토큰이 없으면 자동 로그인 불가
-    if (!prefs.containsKey('token')) return false;
+    _isAuthenticating = true;
 
-    // 저장된 정보 불러오기
-    _token = prefs.getString('token');
-    _userId = prefs.getInt('userId');
-    _email = prefs.getString('email');
-    _userType = prefs.getString('userType');
-
-    // 토큰 유효성 검증 (선택 사항)
     try {
-      await _apiService.validateToken(_token!);
+      final prefs = await SharedPreferences.getInstance();
+
+      // 저장된 토큰이 없으면 자동 로그인 불가
+      if (!prefs.containsKey('token')) {
+        _isAuthenticating = false;
+        return false;
+      }
+
+      // 저장된 정보 불러오기
+      _token = prefs.getString('token');
+      _userId = prefs.getInt('userId');
+      _email = prefs.getString('email');
+      _userType = prefs.getString('userType');
+
+      // 토큰 유효성 검증 (선택 사항)
+      try {
+        await _apiService.validateToken(_token!);
+      } catch (e) {
+        // 토큰이 유효하지 않으면 로그아웃 처리
+        await logout();
+        _isAuthenticating = false;
+        return false;
+      }
+
+      _isAuthenticating = false;
+      notifyListeners();
+      return true;
     } catch (e) {
-      // 토큰이 유효하지 않으면 로그아웃 처리
-      await logout();
+      print('자동 로그인 오류: $e');
+      _isAuthenticating = false;
       return false;
     }
-
-    notifyListeners();
-    return true;
   }
 
   // 로그아웃
   Future<void> logout() async {
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return;
+    _isAuthenticating = true;
+
     try {
       // API 서비스를 통해 로그아웃 (토큰 무효화)
       if (_token != null) {
@@ -172,6 +213,7 @@ class AuthProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       prefs.clear();
 
+      _isAuthenticating = false;
       notifyListeners();
     }
   }

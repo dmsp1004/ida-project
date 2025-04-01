@@ -57,6 +57,7 @@ class MyApp extends StatelessWidget {
               ),
               // 앱 내 페이지 라우트 정의
               routes: {
+                // '/': (context) => const LoginScreen(), // 루트 경로 제거 (home 속성과 충돌)
                 '/home': (context) => const HomeScreen(),
                 '/parent_home': (context) => const ParentHomeScreen(),
                 '/sitter_home': (context) => const SitterHomeScreen(),
@@ -99,7 +100,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// OAuth 콜백 처리 화면 (임시)
+// OAuth 콜백 처리 화면 (수정)
 class OAuthCallbackScreen extends StatefulWidget {
   const OAuthCallbackScreen({Key? key}) : super(key: key);
 
@@ -108,54 +109,123 @@ class OAuthCallbackScreen extends StatefulWidget {
 }
 
 class _OAuthCallbackScreenState extends State<OAuthCallbackScreen> {
+  bool _isProcessing = false;
+
   @override
   void initState() {
     super.initState();
-    _processOAuthCallback();
+    // initState에서는 즉시 실행하지 않고, 빌드 완료 후 실행
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _processOAuthCallback();
+    });
   }
 
   // OAuth 콜백 처리 및 적절한 화면으로 리다이렉트
   Future<void> _processOAuthCallback() async {
-    // URI 파라미터에서 code와 provider 추출
-    final uri = Uri.parse(ModalRoute.of(context)?.settings.name ?? '');
-    final queryParams = uri.queryParameters;
+    if (_isProcessing) return;
+    _isProcessing = true;
 
-    final code = queryParams['code'];
-    final provider = queryParams['provider'];
+    try {
+      // URI 파라미터에서 code와 provider 추출
+      final uri = Uri.parse(ModalRoute.of(context)?.settings.name ?? '');
+      final queryParams = uri.queryParameters;
 
-    if (code != null && provider != null) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.handleSocialLoginCallback(
-        code,
-        provider,
-      );
+      final code = queryParams['code'];
+      final provider =
+          queryParams['provider'] ?? _getProviderFromPath(uri.path);
 
-      if (success) {
-        // 로그인 성공 시 해당 유형 홈 화면으로 이동
-        _navigateToHome(authProvider.userType);
-      } else {
-        // 로그인 실패 시 로그인 화면으로 복귀
-        Navigator.pushReplacementNamed(context, '/login');
+      if (code != null && provider != null) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final success = await authProvider.handleSocialLoginCallback(
+          code,
+          provider,
+        );
+
+        if (success && mounted) {
+          // 로그인 성공 시 해당 유형 홈 화면으로 이동
+          _navigateToHome(authProvider.userType);
+        } else if (mounted) {
+          // 로그인 실패 시 로그인 화면으로 복귀
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage ?? '소셜 로그인 처리 실패'),
+            ),
+          );
+          // 네비게이션 스택 완전히 비우고 처음부터 시작
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } else if (mounted) {
+        // 필요한 파라미터가 없으면 로그인 화면으로 이동
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
       }
-    } else {
-      // 필요한 파라미터가 없으면 로그인 화면으로 이동
-      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      print('OAuth 콜백 처리 오류: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('로그인 처리 중 오류가 발생했습니다: $e')));
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+          (route) => false,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
   }
 
+  // URL 경로에서 제공자 추출
+  String? _getProviderFromPath(String path) {
+    final parts = path.split('/');
+    for (final provider in ['google', 'kakao', 'naver']) {
+      if (parts.contains(provider)) {
+        return provider;
+      }
+    }
+    return null;
+  }
+
   void _navigateToHome(String? userType) {
+    if (!mounted) return;
+
+    // 이전 라우트를 모두 제거하여 불필요한 스택 방지
     switch (userType) {
       case 'PARENT':
-        Navigator.pushReplacementNamed(context, '/parent_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/parent_home',
+          (route) => false,
+        );
         break;
       case 'SITTER':
-        Navigator.pushReplacementNamed(context, '/sitter_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/sitter_home',
+          (route) => false,
+        );
         break;
       case 'ADMIN':
-        Navigator.pushReplacementNamed(context, '/admin_home');
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/admin_home',
+          (route) => false,
+        );
         break;
       default:
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         break;
     }
   }
