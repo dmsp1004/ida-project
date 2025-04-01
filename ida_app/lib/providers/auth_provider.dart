@@ -217,4 +217,57 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // 회원가입 처리
+  Future<bool> register(
+    String email,
+    String password,
+    String phoneNumber,
+    String userType,
+  ) async {
+    // 이미 인증 처리 중이면 중복 호출 방지
+    if (_isAuthenticating) return false;
+    _isAuthenticating = true;
+
+    _errorMessage = null; // 오류 메시지 초기화
+    _isLoading = true; // 로딩 시작
+    notifyListeners();
+
+    try {
+      // API 서비스를 통해 회원가입 요청
+      final responseData = await _apiService.register(
+        email,
+        password,
+        phoneNumber,
+        userType,
+      );
+
+      // 토큰 및 사용자 정보 저장
+      _token = responseData['token'];
+      _userId = responseData['userId'];
+      _email = email;
+      _userType = responseData['role']; // 백엔드에서 제공하는 사용자 유형(role) 저장
+
+      // 로컬 저장소에 정보 저장
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('token', _token!);
+      prefs.setInt('userId', _userId!);
+      prefs.setString('email', _email!);
+      prefs.setString('userType', _userType!); // 사용자 유형 저장
+
+      print('회원가입 성공: 유형=$_userType, 이메일=$_email');
+      _isLoading = false; // 로딩 종료
+      _isAuthenticating = false; // 인증 처리 완료
+      notifyListeners();
+      return true;
+    } catch (e) {
+      // 예외 처리
+      _errorMessage = '회원가입 실패: ${e.toString()}';
+      print('회원가입 예외 발생: $_errorMessage');
+      _isLoading = false; // 로딩 종료
+      _isAuthenticating = false; // 인증 처리 완료
+      notifyListeners();
+      return false;
+    }
+  }
 }
