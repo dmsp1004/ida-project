@@ -3,26 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>소셜 로그인 테스트</title>
+    <title>소셜 계정 인증</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
             text-align: center;
         }
-        h1 {
+        h1, h2 {
             color: #333;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
-        .login-container {
+        .tabs {
             display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 30px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
         }
-        .social-login-btn {
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f1f1f1;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab.active {
+            background-color: #4285f4;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .auth-container {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        .auth-section {
+            flex: 1;
+            max-width: 350px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .social-btn {
             padding: 12px 24px;
             font-size: 16px;
             border: none;
@@ -33,33 +63,95 @@
             justify-content: center;
             text-decoration: none;
             transition: background-color 0.3s;
+            margin-bottom: 15px;
+            width: 100%;
         }
-        .google-login {
+        .google-btn {
             background-color: #ffffff;
             color: #757575;
             border: 1px solid #dddddd;
         }
-        .google-login:hover {
+        .google-btn:hover {
             background-color: #f1f1f1;
         }
-        .kakao-login {
+        .kakao-btn {
             background-color: #FEE500;
             color: #000000;
         }
-        .kakao-login:hover {
+        .kakao-btn:hover {
             background-color: #F2D900;
         }
-        .naver-login {
+        .naver-btn {
             background-color: #03C75A;
             color: #ffffff;
         }
-        .naver-login:hover {
+        .naver-btn:hover {
             background-color: #02a64a;
         }
         .logo {
             width: 24px;
             height: 24px;
             margin-right: 10px;
+        }
+        .form-section {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            text-align: left;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .user-type-options {
+            display: flex;
+            gap: 20px;
+            margin-top: 5px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .btn-primary {
+            background-color: #4285f4;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #3367d6;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .parent-fields, .sitter-fields {
+            display: none;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            margin-top: 10px;
         }
         .result-container {
             margin-top: 30px;
@@ -74,44 +166,215 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        .section-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .vertical-divider {
+            width: 1px;
+            background-color: #ddd;
+            margin: 0 15px;
+        }
     </style>
 </head>
 <body>
-<h1>소셜 로그인 테스트</h1>
+<h1>소셜 계정 인증</h1>
 
-<div class="login-container">
-    <a href="/oauth2/authorization/google" class="social-login-btn google-login">
-        <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" class="logo">
-        Google 로그인
-    </a>
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('login')">로그인</div>
+    <div class="tab" onclick="switchTab('register')">회원가입</div>
+</div>
 
-    <a href="/oauth2/authorization/kakao" class="social-login-btn kakao-login">
-        <img src="https://cdn-icons-png.flaticon.com/512/3669/3669973.png" alt="Kakao" class="logo">
-        카카오 로그인
-    </a>
+<div id="login-tab" class="tab-content active">
+    <h2>로그인</h2>
+    <div class="auth-container">
+        <div class="auth-section">
+            <div class="section-title">일반 로그인</div>
+            <div class="form-section">
+                <div class="form-group">
+                    <label>이메일</label>
+                    <input type="email" placeholder="이메일을 입력해주세요" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" placeholder="비밀번호를 입력해주세요" class="form-control">
+                </div>
+                <button class="btn btn-primary" style="width: 100%">로그인</button>
+            </div>
+        </div>
 
-    <a href="/oauth2/authorization/naver" class="social-login-btn naver-login">
-        <img src="https://play-lh.googleusercontent.com/jYtnK__ibJh9emQKLYkK-OPUjkPZXpsFjHHdBL23-ultP1DNzb1L5VBOAKYYpAdO9Q" alt="Naver" class="logo">
-        네이버 로그인
-    </a>
+        <div class="auth-section">
+            <div class="section-title">소셜 로그인</div>
+            <div>
+                <a href="/oauth2/authorization/google?mode=login" class="social-btn google-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" class="logo">
+                    Google 로그인
+                </a>
+
+                <a href="/oauth2/authorization/kakao?mode=login" class="social-btn kakao-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3669/3669973.png" alt="Kakao" class="logo">
+                    카카오 로그인
+                </a>
+
+                <a href="/oauth2/authorization/naver?mode=login" class="social-btn naver-btn">
+                    <img src="https://play-lh.googleusercontent.com/jYtnK__ibJh9emQKLYkK-OPUjkPZXpsFjHHdBL23-ultP1DNzb1L5VBOAKYYpAdO9Q" alt="Naver" class="logo">
+                    네이버 로그인
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="register-tab" class="tab-content">
+    <h2>회원가입</h2>
+    <div class="auth-container">
+        <div class="auth-section">
+            <div class="section-title">일반 회원가입</div>
+            <div class="form-section">
+                <div class="form-group">
+                    <label>이메일</label>
+                    <input type="email" placeholder="이메일을 입력해주세요" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>비밀번호</label>
+                    <input type="password" placeholder="비밀번호를 입력해주세요" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>비밀번호 확인</label>
+                    <input type="password" placeholder="비밀번호를 다시 입력해주세요" class="form-control">
+                </div>
+                <button class="btn btn-primary" style="width: 100%">회원가입</button>
+            </div>
+        </div>
+
+        <div class="auth-section">
+            <div class="section-title">소셜 회원가입</div>
+            <div>
+                <a href="/oauth2/authorization/google?mode=signup" class="social-btn google-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" class="logo">
+                    Google로 회원가입
+                </a>
+
+                <a href="/oauth2/authorization/kakao?mode=signup" class="social-btn kakao-btn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3669/3669973.png" alt="Kakao" class="logo">
+                    카카오로 회원가입
+                </a>
+
+                <a href="/oauth2/authorization/naver?mode=signup" class="social-btn naver-btn">
+                    <img src="https://play-lh.googleusercontent.com/jYtnK__ibJh9emQKLYkK-OPUjkPZXpsFjHHdBL23-ultP1DNzb1L5VBOAKYYpAdO9Q" alt="Naver" class="logo">
+                    네이버로 회원가입
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 소셜 회원가입 추가 정보 폼 -->
+<div id="oauth-register-form" style="display: none;">
+    <h2>소셜 회원가입 - 추가 정보 입력</h2>
+    <p>회원가입을 완료하기 위해 추가 정보를 입력해주세요.</p>
+
+    <div id="error-message" class="alert alert-danger" style="display: none;"></div>
+
+    <div class="form-section">
+        <div class="form-group">
+            <label>이메일</label>
+            <input type="email" id="email" readonly class="form-control">
+            <small>소셜 계정으로 인증된 이메일입니다.</small>
+        </div>
+
+        <div class="form-group">
+            <label>전화번호</label>
+            <input type="tel" id="phoneNumber" placeholder="010-0000-0000" required class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label>회원 유형</label>
+            <div class="user-type-options">
+                <label>
+                    <input type="radio" name="userType" value="PARENT" checked onchange="toggleUserTypeFields()">
+                    부모
+                </label>
+                <label>
+                    <input type="radio" name="userType" value="SITTER" onchange="toggleUserTypeFields()">
+                    시터
+                </label>
+            </div>
+        </div>
+
+        <div id="parent-fields" class="parent-fields">
+            <div class="form-group">
+                <label>자녀 수</label>
+                <input type="number" id="numberOfChildren" min="0" placeholder="자녀 수" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>주소</label>
+                <input type="text" id="address" placeholder="주소를 입력해주세요" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>추가 정보</label>
+                <textarea id="additionalInfo" placeholder="추가 정보를 입력해주세요" class="form-control"></textarea>
+            </div>
+        </div>
+
+        <div id="sitter-fields" class="sitter-fields">
+            <div class="form-group">
+                <label>시터 유형</label>
+                <select id="sitterType" class="form-control">
+                    <option value="REGULAR_SITTER">일반 시터</option>
+                    <option value="SCHOOL_ESCORT">등하원 도우미</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>경력 (년)</label>
+                <input type="number" id="experienceYears" min="0" placeholder="경력 연수" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>시간당 요금</label>
+                <input type="number" id="hourlyRate" min="0" step="0.01" placeholder="시간당 요금" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label>소개</label>
+                <textarea id="bio" placeholder="간단한 자기소개를 작성해주세요" class="form-control"></textarea>
+            </div>
+        </div>
+
+        <button onclick="submitRegistration()" class="btn btn-primary" style="width: 100%">회원가입 완료</button>
+    </div>
 </div>
 
 <div id="result" class="result-container">
-    <h3>로그인 결과</h3>
+    <h3>결과</h3>
     <pre id="resultData"></pre>
 </div>
 
 <script>
-    // URL에서 토큰 정보 파싱
+    // URL에서 파라미터 파싱 함수
+    function getUrlParams() {
+        const params = {};
+        const queryString = window.location.search.substring(1);
+        const hashString = window.location.hash.substring(1);
+        const urlParams = new URLSearchParams(queryString || hashString);
+
+        for (const [key, value] of urlParams.entries()) {
+            params[key] = value;
+        }
+
+        return params;
+    }
+
+    // 페이지 로드 시 실행
     document.addEventListener('DOMContentLoaded', function() {
-        // URL 파라미터 또는 해시에서 토큰 정보를 확인
-        const urlParams = new URLSearchParams(window.location.search);
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const params = getUrlParams();
 
         // 토큰 정보 확인
-        const token = urlParams.get('token') || hashParams.get('token');
-
-        if (token) {
+        if (params.token) {
             const resultContainer = document.getElementById('result');
             const resultData = document.getElementById('resultData');
 
@@ -119,18 +382,191 @@
 
             // 토큰 정보 표시
             const tokenInfo = {
-                token: token,
-                userId: urlParams.get('userId') || hashParams.get('userId'),
-                email: urlParams.get('email') || hashParams.get('email'),
-                role: urlParams.get('role') || hashParams.get('role')
+                token: params.token,
+                userId: params.userId,
+                email: params.email,
+                role: params.role
             };
 
             resultData.textContent = JSON.stringify(tokenInfo, null, 2);
 
-            // localStorage에 토큰 저장 (실제 애플리케이션에서 사용할 경우)
-            localStorage.setItem('authToken', token);
+            // localStorage에 토큰 저장
+            localStorage.setItem('authToken', params.token);
         }
+
+        // 회원가입 모드 확인
+        if (params.mode === 'signup' || params.isNewUser === 'true') {
+            // 소셜 회원가입 추가 정보 폼 표시
+            checkOAuthSession();
+        }
+
+        // URL에 따라 적절한 탭 활성화
+        if (params.mode === 'signup' || params.isNewUser === 'true') {
+            switchTab('register');
+        }
+
+        // 기본적으로 부모 필드 표시
+        toggleUserTypeFields();
     });
+
+    // 탭 전환 함수
+    function switchTab(tabName) {
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => tab.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+
+        document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+    }
+
+    // 사용자 유형에 따른 필드 토글
+    function toggleUserTypeFields() {
+        const userType = document.querySelector('input[name="userType"]:checked').value;
+        const parentFields = document.getElementById('parent-fields');
+        const sitterFields = document.getElementById('sitter-fields');
+
+        if (userType === 'PARENT') {
+            parentFields.style.display = 'block';
+            sitterFields.style.display = 'none';
+        } else {
+            parentFields.style.display = 'none';
+            sitterFields.style.display = 'block';
+        }
+    }
+
+    // 소셜 로그인 세션 정보 확인
+    async function checkOAuthSession() {
+        try {
+            const response = await fetch('/api/public/oauth/check-session');
+            const data = await response.json();
+
+            if (data.hasOAuthInfo) {
+                // 로그인/회원가입 컨텐츠 숨기기
+                document.getElementById('login-tab').classList.remove('active');
+                document.getElementById('register-tab').classList.remove('active');
+
+                // 추가 정보 폼 표시
+                document.getElementById('oauth-register-form').style.display = 'block';
+
+                // 이메일 필드 설정
+                document.getElementById('email').value = data.email;
+
+                // 탭 비활성화
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                    tab.style.pointerEvents = 'none';
+                    tab.style.opacity = '0.5';
+                });
+            }
+        } catch (error) {
+            console.error('세션 정보 확인 중 오류:', error);
+            showError('소셜 로그인 정보를 불러오는데 실패했습니다.');
+        }
+    }
+
+    // 에러 메시지 표시
+    function showError(message) {
+        const errorElement = document.getElementById('error-message');
+        errorElement.textContent = message;
+        errorElement.style.display = 'block';
+    }
+
+    // 회원가입 제출
+    async function submitRegistration() {
+        const userType = document.querySelector('input[name="userType"]:checked').value;
+        const errorMessage = document.getElementById('error-message');
+        errorMessage.style.display = 'none';
+
+        // 필수 필드 검증
+        const email = document.getElementById('email').value;
+        const phoneNumber = document.getElementById('phoneNumber').value;
+
+        if (!email || !phoneNumber) {
+            showError('이메일과 전화번호는 필수 입력 항목입니다.');
+            return;
+        }
+
+        // 데이터 준비
+        let formData = {
+            email: email,
+            phoneNumber: phoneNumber,
+            userType: userType,
+        };
+
+        try {
+            // 소셜 로그인 세션 정보 가져오기
+            const sessionResponse = await fetch('/api/public/oauth/check-session');
+            const sessionData = await sessionResponse.json();
+
+            if (!sessionData.hasOAuthInfo) {
+                showError('소셜 로그인 정보가 없습니다. 먼저 소셜 로그인을 해주세요.');
+                return;
+            }
+
+            // 세션에서 provider 정보 가져오기
+            formData.provider = sessionData.provider;
+            formData.providerId = sessionData.providerId;
+
+            // 사용자 유형에 따른 추가 정보
+            if (userType === 'PARENT') {
+                const numberOfChildren = document.getElementById('numberOfChildren').value;
+                formData.numberOfChildren = numberOfChildren ? parseInt(numberOfChildren) : null;
+                formData.address = document.getElementById('address').value;
+                formData.additionalInfo = document.getElementById('additionalInfo').value;
+            } else {
+                formData.sitterType = document.getElementById('sitterType').value;
+                const experienceYears = document.getElementById('experienceYears').value;
+                formData.experienceYears = experienceYears ? parseInt(experienceYears) : null;
+                const hourlyRate = document.getElementById('hourlyRate').value;
+                formData.hourlyRate = hourlyRate ? parseFloat(hourlyRate) : null;
+                formData.bio = document.getElementById('bio').value;
+            }
+
+            // 회원가입 API 호출
+            const response = await fetch('/api/auth/oauth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '회원가입 처리 중 오류가 발생했습니다.');
+            }
+
+            const data = await response.json();
+
+            // 결과 표시
+            const resultContainer = document.getElementById('result');
+            const resultData = document.getElementById('resultData');
+
+            resultContainer.style.display = 'block';
+            resultData.textContent = JSON.stringify(data, null, 2);
+
+            // 세션 정보 삭제
+            await fetch('/api/public/oauth/clear-session');
+
+            // localStorage에 토큰 저장
+            if (data.token) {
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('email', data.email);
+                localStorage.setItem('role', data.role);
+
+                // 성공 메시지 표시
+                alert('회원가입이 완료되었습니다. 메인 페이지로 이동합니다.');
+                window.location.href = '/';
+            }
+
+        } catch (error) {
+            console.error('회원가입 중 오류:', error);
+            showError(error.message || '회원가입 처리 중 오류가 발생했습니다.');
+        }
+    }
 </script>
 </body>
 </html>

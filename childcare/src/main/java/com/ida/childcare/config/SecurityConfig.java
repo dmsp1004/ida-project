@@ -1,7 +1,7 @@
 package com.ida.childcare.config;
 
 import com.ida.childcare.oauth.CustomOAuth2UserService;
-import com.ida.childcare.oauth.OAuth2LoginSuccessHandler;
+import com.ida.childcare.oauth.OAuth2SuccessHandler;
 import com.ida.childcare.security.CustomAuthenticationProvider;
 import com.ida.childcare.security.JwtAuthenticationFilter;
 import com.ida.childcare.util.JwtUtil;
@@ -30,17 +30,17 @@ public class SecurityConfig {
     private final CustomAuthenticationProvider authenticationProvider;
     private UserDetailsService userDetailsService;
     private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
 
     @Autowired
     public SecurityConfig(JwtUtil jwtUtil,
                           CustomAuthenticationProvider authenticationProvider,
                           CustomOAuth2UserService customOAuth2UserService,
-                          OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) {
+                          OAuth2SuccessHandler oAuth2SuccessHandler) {
         this.jwtUtil = jwtUtil;
         this.authenticationProvider = authenticationProvider;
         this.customOAuth2UserService = customOAuth2UserService;
-        this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
+        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
     }
 
     @Autowired
@@ -63,10 +63,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authConfig -> authConfig
                         .requestMatchers("/api/auth/**", "/login", "/error", "/oauth2/**").permitAll()
+                        .requestMatchers("/api/public/**").permitAll() // 공개 API 경로 추가
+                        .requestMatchers("/register/oauth2", "/login/oauth2/success").permitAll() // 소셜 회원가입 관련 경로 추가
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/test.html").permitAll()
-                        .requestMatchers("/api/auth/**", "/login", "/error", "/oauth2/**", "/oauth-test.html").permitAll()
+                        .requestMatchers("/test.html", "/oauth-test.html").permitAll() // oauth-test.html 추가
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -76,9 +77,7 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )
-                        .successHandler((request, response, authentication) -> {
-                            response.sendRedirect("/");  // 홈페이지로 리다이렉트
-                        })
+                        .successHandler(oAuth2SuccessHandler) // 소셜 로그인 성공 핸들러 적용
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
