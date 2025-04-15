@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 테스트</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            margin-bottom: 20px;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 10px 16px;
+            transition: 0.3s;
+            font-size: 14px;
+            width: 50%;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        .success-message {
+            color: green;
+            margin-top: 10px;
+        }
+        .user-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>로그인 테스트</h1>
+
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'loginTab')">로그인</button>
+        <button class="tablinks" onclick="openTab(event, 'registerTab')">회원가입</button>
+    </div>
+
+    <!-- 로그인 탭 -->
+    <div id="loginTab" class="tab-content" style="display: block;">
+        <div class="form-group">
+            <label for="loginEmail">이메일</label>
+            <input type="email" id="loginEmail" placeholder="이메일을 입력하세요.">
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">비밀번호</label>
+            <input type="password" id="loginPassword" placeholder="비밀번호를 입력하세요.">
+        </div>
+        <button class="btn" onclick="login()">로그인</button>
+        <div id="loginMessage"></div>
+
+        <!-- 로그인된 사용자 정보 -->
+        <div class="user-info" id="userInfo" style="display: none;">
+            <h3>로그인 정보</h3>
+            <div id="userInfoContent"></div>
+            <button class="btn" onclick="logout()" style="margin-top: 10px;">로그아웃</button>
+            <button class="btn" onclick="location.href='job-board-test.html'" style="margin-top: 10px; background-color: #007bff;">구인구직 게시판 이동</button>
+        </div>
+    </div>
+
+    <!-- 회원가입 탭 -->
+    <div id="registerTab" class="tab-content">
+        <div class="form-group">
+            <label for="registerEmail">이메일</label>
+            <input type="email" id="registerEmail" placeholder="이메일을 입력하세요.">
+        </div>
+        <div class="form-group">
+            <label for="registerPassword">비밀번호</label>
+            <input type="password" id="registerPassword" placeholder="비밀번호를 입력하세요.">
+        </div>
+        <div class="form-group">
+            <label for="registerPhoneNumber">전화번호</label>
+            <input type="tel" id="registerPhoneNumber" placeholder="전화번호를 입력하세요.">
+        </div>
+        <div class="form-group">
+            <label for="registerUserType">회원 유형</label>
+            <select id="registerUserType" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <option value="PARENT">부모</option>
+                <option value="SITTER">시터</option>
+            </select>
+        </div>
+        <button class="btn" onclick="register()">회원가입</button>
+        <div id="registerMessage"></div>
+    </div>
+</div>
+
+<script>
+    // 페이지 로드 시 실행
+    document.addEventListener('DOMContentLoaded', function() {
+        checkLoginStatus();
+    });
+
+    // 탭 전환 함수
+    function openTab(evt, tabName) {
+        // 모든 탭 내용 숨기기
+        const tabContents = document.getElementsByClassName('tab-content');
+        for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].style.display = 'none';
+        }
+
+        // 모든 탭 버튼에서 active 클래스 제거
+        const tabLinks = document.getElementsByClassName('tablinks');
+        for (let i = 0; i < tabLinks.length; i++) {
+            tabLinks[i].className = tabLinks[i].className.replace(' active', '');
+        }
+
+        // 선택한 탭 내용 보이기 및 버튼 활성화
+        document.getElementById(tabName).style.display = 'block';
+        evt.currentTarget.className += ' active';
+    }
+
+    // 로그인 함수
+    function login() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        if (!email.trim() || !password.trim()) {
+            document.getElementById('loginMessage').innerHTML = '<p class="error-message">이메일과 비밀번호를 입력해주세요.</p>';
+            return;
+        }
+
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('로그인 실패');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 토큰 저장
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('email', data.email);
+                localStorage.setItem('role', data.role);
+
+                document.getElementById('loginMessage').innerHTML = '<p class="success-message">로그인 성공!</p>';
+                checkLoginStatus();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('loginMessage').innerHTML = '<p class="error-message">로그인 실패. 이메일 또는 비밀번호를 확인해주세요.</p>';
+            });
+    }
+
+    // 회원가입 함수
+    function register() {
+        const email = document.getElementById('registerEmail').value;
+        const password = document.getElementById('registerPassword').value;
+        const phoneNumber = document.getElementById('registerPhoneNumber').value;
+        const userType = document.getElementById('registerUserType').value;
+
+        if (!email.trim() || !password.trim() || !phoneNumber.trim()) {
+            document.getElementById('registerMessage').innerHTML = '<p class="error-message">모든 필드를 입력해주세요.</p>';
+            return;
+        }
+
+        fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                password,
+                phoneNumber,
+                userType
+            })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('회원가입 실패');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 토큰 저장
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('userId', data.userId);
+                localStorage.setItem('email', data.email);
+                localStorage.setItem('role', data.role);
+
+                document.getElementById('registerMessage').innerHTML = '<p class="success-message">회원가입 성공!</p>';
+                setTimeout(() => {
+                    // 로그인 탭으로 전환
+                    document.querySelector('.tablinks[onclick*="loginTab"]').click();
+                    checkLoginStatus();
+                }, 2000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('registerMessage').innerHTML = '<p class="error-message">회원가입 실패. 이미 사용 중인 이메일이거나 입력 정보를 확인해주세요.</p>';
+            });
+    }
+
+    // 로그아웃 함수
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('email');
+        localStorage.removeItem('role');
+
+        document.getElementById('userInfo').style.display = 'none';
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginMessage').innerHTML = '<p class="success-message">로그아웃 되었습니다.</p>';
+    }
+
+    // 로그인 상태 확인
+    function checkLoginStatus() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            document.getElementById('userInfo').style.display = 'none';
+            return;
+        }
+
+        fetch('/api/auth/validate-token', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('유효하지 않은 토큰');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.valid) {
+                    const userInfo = document.getElementById('userInfo');
+                    const userInfoContent = document.getElementById('userInfoContent');
+                    userInfo.style.display = 'block';
+
+                    // 사용자 정보 표시
+                    userInfoContent.innerHTML = `
+                            <p><strong>이메일:</strong> ${data.email}</p>
+                            <p><strong>유저 ID:</strong> ${data.userId}</p>
+                            <p><strong>회원 유형:</strong> ${getUserTypeText(data.role)}</p>
+                        `;
+
+                    // 로그인 폼 초기화
+                    document.getElementById('loginEmail').value = '';
+                    document.getElementById('loginPassword').value = '';
+                    document.getElementById('loginMessage').innerHTML = '';
+                } else {
+                    // 유효하지 않은 토큰
+                    logout();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                logout();
+            });
+    }
+
+    // 회원 유형 텍스트 변환
+    function getUserTypeText(userType) {
+        const userTypes = {
+            'PARENT': '부모',
+            'SITTER': '시터',
+            'ADMIN': '관리자'
+        };
+        return userTypes[userType] || userType;
+    }
+</script>
+</body>
+</html>

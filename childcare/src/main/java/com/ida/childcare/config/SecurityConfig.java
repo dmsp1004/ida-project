@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/test.html", "/oauth-test.html").permitAll() // oauth-test.html 추가
+                        .requestMatchers("/job-board-test.html", "/login-test.html").permitAll() // 구인구직 게시판과 로그인 테스트 페이지 추가
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
