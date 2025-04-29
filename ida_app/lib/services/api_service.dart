@@ -97,6 +97,16 @@ class ApiService {
     );
   }
 
+  // _dio 객체에 접근할 수 있는 getter 메서드 추가
+  Dio getDio() {
+    return _dio;
+  }
+
+  // baseUrl 접근을 위한 getter 추가
+  String getBaseUrl() {
+    return _baseUrl;
+  }
+
   // 로그인 메서드
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
