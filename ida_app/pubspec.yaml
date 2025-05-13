@@ -89,9 +89,9 @@ flutter:
     - family: NotoSansKR
       fonts:
         - asset: assets/fonts/NotoSansKR-Regular.ttf
-        - asset: assets/fonts/NotoSansKR-Medium.ttf
+        - asset: assets/fonts/NotoSansKR-Regular.ttf
           weight: 500
-        - asset: assets/fonts/NotoSansKR-Bold.ttf
+        - asset: assets/fonts/NotoSansKR-Regular.ttf
           weight: 700
 
   # An image asset can refer to one or more resolution-specific "variants", see

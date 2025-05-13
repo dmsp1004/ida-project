@@ -104,6 +104,16 @@ class HomeScreen extends StatelessWidget {
       children: [
         _buildMenuButton(
           context,
+          title: '구인구직 게시판 바로가기',
+          icon: Icons.list_alt,
+          color: Colors.deepOrange,
+          onPressed: () {
+            Navigator.pushNamed(context, '/job_postings');
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildMenuButton(
+          context,
           title: '사용자 관리',
           icon: Icons.people,
           color: Colors.purple,
@@ -157,6 +167,16 @@ class HomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _buildMenuButton(
+          context,
+          title: '구인구직 게시판 바로가기',
+          icon: Icons.list,
+          color: Colors.deepOrange,
+          onPressed: () {
+            Navigator.pushNamed(context, '/job_postings');
+          },
+        ),
+        const SizedBox(height: 12),
         _buildMenuButton(
           context,
           title: '프로필 보기',

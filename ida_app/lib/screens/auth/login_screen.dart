@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ida_app/screens/job_posting_list_screen.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'package:uni_links/uni_links.dart';
@@ -179,35 +180,14 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     print('유형에 따른 화면 이동 시작: $userType');
 
-    // pushReplacementNamed 대신 pushNamedAndRemoveUntil 사용
-    // 이전 라우트를 모두 제거하여 백 버튼 동작 방지
-    switch (userType) {
-      case 'PARENT':
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/parent_home',
-          (route) => false,
-        );
-        break;
-      case 'SITTER':
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/sitter_home',
-          (route) => false,
-        );
-        break;
-      case 'ADMIN':
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/admin_home',
-          (route) => false,
-        );
-        break;
-      default:
-        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
-        break;
-    }
-    print('사용자 유형: $userType에 따라 화면 이동 완료');
+    // 모든 사용자 유형에 대해 로그인 후 구인구직 게시판으로 이동
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/job_postings', // 구인구직 게시판 라우트
+      (route) => false,
+    );
+
+    print('사용자 유형: $userType - 구인구직 게시판으로 이동 완료');
   }
 
   @override
