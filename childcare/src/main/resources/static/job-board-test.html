@@ -141,11 +141,57 @@
             color: green;
             margin-top: 10px;
         }
+        .info-message {
+            color: #0066cc;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e6f2ff;
+            border-radius: 4px;
+            border: 1px solid #0066cc;
+        }
+        #loginPrompt {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #555;
+        }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>구인구직 게시판 테스트</h1>
+
+    <!-- 로그인 상태 표시 -->
+    <div id="loginPrompt"></div>
 
     <div class="tab">
         <button class="tablinks active" onclick="openTab(event, 'jobListTab')">구인글 목록</button>
@@ -279,6 +325,16 @@
             <!-- 내 지원서 목록이 여기에 동적으로 로드됩니다 -->
         </div>
     </div>
+
+    <!-- 모달 창 -->
+    <div id="tokenModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>세션 만료</h2>
+            <p>로그인 세션이 만료되었습니다. 다시 로그인해주세요.</p>
+            <button class="btn" onclick="redirectToLogin()">로그인 페이지로 이동</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -288,21 +344,144 @@
     // API 기본 URL
     const API_URL = '/api';
 
-    // 페이지 로드 시 실행
-    document.addEventListener('DOMContentLoaded', function() {
-        loadAllJobs();
-
-        // 로그인 상태 확인
+    // API 요청을 처리하는 함수
+    async function apiRequest(url, options = {}) {
         const token = getToken();
         if (token) {
+            options.headers = {
+                ...options.headers,
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        try {
+            const response = await fetch(`${API_URL}${url}`, options);
+
+            // 로그인 필요 (401 Unauthorized)
+            if (response.status === 401) {
+                // 토큰 만료 처리
+                localStorage.removeItem('token');
+                showTokenModal();
+                return null;
+            }
+
+            // 응답이 JSON이 아닌 경우 (HTML 등) 처리
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            } else if (!response.ok) {
+                throw new Error(`서버 오류: ${response.status} - ${response.statusText}`);
+            } else {
+                // JSON이 아닌 응답이지만 성공한 경우
+                return { success: true, message: '요청이 성공했습니다.' };
+            }
+        } catch (error) {
+            console.error('API 요청 오류:', error);
+            throw error;
+        }
+    }
+
+    // 토큰 만료 모달 표시
+    function showTokenModal() {
+        document.getElementById('tokenModal').style.display = 'block';
+        updateLoginStatus();
+    }
+
+    // 모달 닫기
+    function closeModal() {
+        document.getElementById('tokenModal').style.display = 'none';
+    }
+
+    // 로그인 페이지로 리다이렉트
+    function redirectToLogin() {
+        window.location.href = '/login';
+    }
+
+    // 로그인 상태 업데이트
+    function updateLoginStatus() {
+        const loginPrompt = document.getElementById('loginPrompt');
+        const token = getToken();
+
+        if (token) {
+            // JWT 토큰에서 사용자 정보 추출 (간단한 예시)
+            let userEmail = "사용자";
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(window.atob(base64));
+                userEmail = payload.sub || "사용자"; // sub claim에 사용자 ID/이메일이 저장되어 있다고 가정
+            } catch (e) {
+                console.error('토큰 파싱 오류:', e);
+            }
+
+            loginPrompt.innerHTML = `
+                <div class="info-message">
+                    <strong>${userEmail}</strong>님 환영합니다!
+                    <button class="btn" onclick="logout()">로그아웃</button>
+                </div>
+            `;
+
+            // 로그인 필요한 탭 활성화
+            document.getElementById('createJobTab').innerHTML = document.getElementById('createJobTab').innerHTML;
             loadMyJobs();
             loadMyApplications();
         } else {
-            document.getElementById('createJobTab').innerHTML = '<p>로그인이 필요한 서비스입니다.</p>';
-            document.getElementById('myJobsTab').innerHTML = '<p>로그인이 필요한 서비스입니다.</p>';
-            document.getElementById('myApplicationsTab').innerHTML = '<p>로그인이 필요한 서비스입니다.</p>';
+            loginPrompt.innerHTML = `
+                <div class="info-message">
+                    서비스를 이용하려면 <a href="/login">로그인</a>이 필요합니다.
+                </div>
+            `;
+
+            // 로그인 필요한 탭 비활성화
+            document.getElementById('createJobTab').innerHTML = '<p>로그인이 필요한 서비스입니다. <a href="/login">로그인하러 가기</a></p>';
+            document.getElementById('myJobsTab').innerHTML = '<p>로그인이 필요한 서비스입니다. <a href="/login">로그인하러 가기</a></p>';
+            document.getElementById('myApplicationsTab').innerHTML = '<p>로그인이 필요한 서비스입니다. <a href="/login">로그인하러 가기</a></p>';
         }
+    }
+
+    // 로그아웃 처리
+    function logout() {
+        localStorage.removeItem('token');
+        updateLoginStatus();
+        loadAllJobs(); // 기본 목록 로드
+        alert('로그아웃되었습니다.');
+    }
+
+    // 페이지 로드 시 실행
+    document.addEventListener('DOMContentLoaded', function() {
+        // 로그인 상태 체크 및 토큰 유효성 검증
+        checkTokenValidity();
+
+        // 구인글 목록 로드
+        loadAllJobs();
     });
+
+    // 토큰 유효성 확인
+    async function checkTokenValidity() {
+        const token = getToken();
+        if (!token) {
+            updateLoginStatus();
+            return;
+        }
+
+        try {
+            // 토큰 유효성 확인을 위한 간단한 API 호출
+            const result = await apiRequest('/auth/validate-token');
+
+            if (result === null) {
+                // apiRequest 내부에서 401 처리됨
+                return;
+            }
+
+            // 토큰이 유효한 경우
+            updateLoginStatus();
+        } catch (error) {
+            console.error('토큰 검증 오류:', error);
+            // 오류 발생 시 토큰 제거 및 로그인 상태 업데이트
+            localStorage.removeItem('token');
+            updateLoginStatus();
+        }
+    }
 
     // 탭 전환 함수
     function openTab(evt, tabName) {
@@ -324,79 +503,83 @@
     }
 
     // 모든 구인글 로드
-    function loadAllJobs() {
-        const token = getToken();
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-        fetch(`${API_URL}/job-postings`, { headers })
-            .then(response => response.json())
-            .then(data => {
+    async function loadAllJobs() {
+        try {
+            const data = await apiRequest('/job-postings');
+            if (data) {
                 renderJobList(data.content, 'jobList');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('jobList').innerHTML = '<p>구인글을 로드하는 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('구인글 로드 오류:', error);
+            document.getElementById('jobList').innerHTML = `
+                <p class="error-message">구인글을 로드하는 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 키워드로 구인글 검색
-    function searchJobs() {
+    async function searchJobs() {
         const keyword = document.getElementById('searchKeyword').value;
         if (!keyword.trim()) {
             loadAllJobs();
             return;
         }
 
-        fetch(`${API_URL}/job-postings/search?keyword=${encodeURIComponent(keyword)}`)
-            .then(response => response.json())
-            .then(data => {
+        try {
+            const data = await apiRequest(`/job-postings/search?keyword=${encodeURIComponent(keyword)}`);
+            if (data) {
                 renderJobList(data.content, 'jobList');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('jobList').innerHTML = '<p>구인글을 검색하는 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('검색 오류:', error);
+            document.getElementById('jobList').innerHTML = `
+                <p class="error-message">구인글을 검색하는 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 구인글 상세 정보 보기
-    function viewJobDetail(jobId) {
-        fetch(`${API_URL}/job-postings/${jobId}`)
-            .then(response => response.json())
-            .then(data => {
-                const jobDetail = document.getElementById('jobDetail');
-                jobDetail.style.display = 'block';
+    async function viewJobDetail(jobId) {
+        try {
+            const data = await apiRequest(`/job-postings/${jobId}`);
+            if (!data) return;
 
-                // 날짜 포맷팅 함수
-                const formatDate = (dateString) => {
-                    const date = new Date(dateString);
-                    return date.toLocaleString('ko-KR');
-                };
+            const jobDetail = document.getElementById('jobDetail');
+            jobDetail.style.display = 'block';
 
-                // 구인글 상세 정보 HTML 생성
-                jobDetail.innerHTML = `
-                        <h2>${data.title}</h2>
-                        <div class="job-info">
-                            <span><strong>위치:</strong> ${data.location}</span>
-                            <span><strong>시급:</strong> ${data.hourlyRate.toLocaleString()}원</span>
-                            <span><strong>기간:</strong> ${formatDate(data.startDate)} ~ ${formatDate(data.endDate)}</span>
-                            <span><strong>아이 나이:</strong> ${data.ageOfChildren}</span>
-                            <span><strong>아이 수:</strong> ${data.numberOfChildren}명</span>
-                            <span><strong>요구 경력:</strong> ${data.requiredExperienceYears}년</span>
-                            <span><strong>구인 유형:</strong> ${getJobTypeText(data.jobType)}</span>
-                            <span><strong>지원자:</strong> ${data.applicationCount}명</span>
-                        </div>
-                        <p><strong>상세 내용:</strong></p>
-                        <p>${data.description}</p>
-                        <div class="job-actions">
-                            <button class="btn" onclick="hideJobDetail()">닫기</button>
-                            <button class="btn" onclick="showApplyForm(${data.id})">지원하기</button>
-                        </div>
-                    `;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('jobDetail').innerHTML = '<p>구인글 상세 정보를 로드하는 중 오류가 발생했습니다.</p>';
-            });
+            // 날짜 포맷팅 함수
+            const formatDate = (dateString) => {
+                const date = new Date(dateString);
+                return date.toLocaleString('ko-KR');
+            };
+
+            // 구인글 상세 정보 HTML 생성
+            jobDetail.innerHTML = `
+                <h2>${data.title}</h2>
+                <div class="job-info">
+                    <span><strong>위치:</strong> ${data.location}</span>
+                    <span><strong>시급:</strong> ${data.hourlyRate.toLocaleString()}원</span>
+                    <span><strong>기간:</strong> ${formatDate(data.startDate)} ~ ${formatDate(data.endDate)}</span>
+                    <span><strong>아이 나이:</strong> ${data.ageOfChildren}</span>
+                    <span><strong>아이 수:</strong> ${data.numberOfChildren}명</span>
+                    <span><strong>요구 경력:</strong> ${data.requiredExperienceYears}년</span>
+                    <span><strong>구인 유형:</strong> ${getJobTypeText(data.jobType)}</span>
+                    <span><strong>지원자:</strong> ${data.applicationCount}명</span>
+                </div>
+                <p><strong>상세 내용:</strong></p>
+                <p>${data.description}</p>
+                <div class="job-actions">
+                    <button class="btn" onclick="hideJobDetail()">닫기</button>
+                    <button class="btn" onclick="showApplyForm(${data.id})">지원하기</button>
+                </div>
+            `;
+        } catch (error) {
+            console.error('상세 정보 로드 오류:', error);
+            document.getElementById('jobDetail').innerHTML = `
+                <p class="error-message">구인글 상세 정보를 로드하는 중 오류가 발생했습니다: ${error.message}</p>
+                <button class="btn" onclick="hideJobDetail()">닫기</button>
+            `;
+        }
     }
 
     // 구인글 상세 정보 숨기기
@@ -406,9 +589,8 @@
 
     // 지원서 작성 폼 보이기
     function showApplyForm(jobId) {
-        const token = getToken();
-        if (!token) {
-            alert('로그인이 필요한 서비스입니다.');
+        if (!getToken()) {
+            showTokenModal();
             return;
         }
 
@@ -423,10 +605,9 @@
     }
 
     // 지원서 제출
-    function submitApplication() {
-        const token = getToken();
-        if (!token) {
-            alert('로그인이 필요한 서비스입니다.');
+    async function submitApplication() {
+        if (!getToken()) {
+            showTokenModal();
             return;
         }
 
@@ -445,38 +626,34 @@
             proposedHourlyRate: parseInt(proposedHourlyRate)
         };
 
-        fetch(`${API_URL}/job-applications`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('지원서 제출 실패');
-                }
-                return response.json();
-            })
-            .then(data => {
+        try {
+            const result = await apiRequest('/job-applications', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (result) {
                 document.getElementById('applyMessage').innerHTML = '<p class="success-message">지원서가 성공적으로 제출되었습니다.</p>';
                 setTimeout(() => {
                     hideApplyForm();
                     loadMyApplications();
                 }, 2000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('applyMessage').innerHTML = '<p class="error-message">지원서 제출 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('지원서 제출 오류:', error);
+            document.getElementById('applyMessage').innerHTML = `
+                <p class="error-message">지원서 제출 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 구인글 작성
-    function createJobPosting() {
-        const token = getToken();
-        if (!token) {
-            alert('로그인이 필요한 서비스입니다.');
+    async function createJobPosting() {
+        if (!getToken()) {
+            showTokenModal();
             return;
         }
 
@@ -510,21 +687,16 @@
             numberOfChildren: parseInt(numberOfChildren)
         };
 
-        fetch(`${API_URL}/job-postings`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(data)
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('구인글 작성 실패');
-                }
-                return response.json();
-            })
-            .then(data => {
+        try {
+            const result = await apiRequest('/job-postings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (result) {
                 document.getElementById('createJobMessage').innerHTML = '<p class="success-message">구인글이 성공적으로 등록되었습니다.</p>';
 
                 // 폼 초기화
@@ -543,206 +715,189 @@
                     loadAllJobs();
                     loadMyJobs();
                 }, 2000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('createJobMessage').innerHTML = '<p class="error-message">구인글 등록 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('구인글 등록 오류:', error);
+            document.getElementById('createJobMessage').innerHTML = `
+                <p class="error-message">구인글 등록 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 내 구인글 로드
-    function loadMyJobs() {
-        const token = getToken();
-        if (!token) return;
+    async function loadMyJobs() {
+        if (!getToken()) return;
 
-        fetch(`${API_URL}/job-postings/my-postings`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
+        try {
+            const data = await apiRequest('/job-postings/my-postings');
+            if (data) {
                 renderJobList(data.content, 'myJobList', true);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('myJobList').innerHTML = '<p>내 구인글을 로드하는 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('내 구인글 로드 오류:', error);
+            document.getElementById('myJobList').innerHTML = `
+                <p class="error-message">내 구인글을 로드하는 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 내 지원서 로드
-    function loadMyApplications() {
-        const token = getToken();
-        if (!token) return;
+    async function loadMyApplications() {
+        if (!getToken()) return;
 
-        fetch(`${API_URL}/job-applications/my-applications`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
+        try {
+            const data = await apiRequest('/job-applications/my-applications');
+            if (data) {
                 renderApplicationsList(data);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('myApplicationsList').innerHTML = '<p>내 지원서를 로드하는 중 오류가 발생했습니다.</p>';
-            });
+            }
+        } catch (error) {
+            console.error('내 지원서 로드 오류:', error);
+            document.getElementById('myApplicationsList').innerHTML = `
+                <p class="error-message">내 지원서를 로드하는 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 특정 구인글의 지원자 목록 보기
-    function viewApplicants(jobId) {
-        const token = getToken();
-        if (!token) return;
+    async function viewApplicants(jobId) {
+        if (!getToken()) {
+            showTokenModal();
+            return;
+        }
 
-        fetch(`${API_URL}/job-applications/by-posting/${jobId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+        try {
+            const data = await apiRequest(`/job-applications/by-posting/${jobId}`);
+            if (!data) return;
+
+            const applicantsList = document.getElementById('applicantsList');
+            const applicantsContent = document.getElementById('applicantsContent');
+            applicantsList.style.display = 'block';
+
+            if (data.length === 0) {
+                applicantsContent.innerHTML = '<p>아직 지원자가 없습니다.</p>';
+                return;
             }
-        })
-            .then(response => response.json())
-            .then(data => {
-                const applicantsList = document.getElementById('applicantsList');
-                const applicantsContent = document.getElementById('applicantsContent');
-                applicantsList.style.display = 'block';
 
-                if (data.length === 0) {
-                    applicantsContent.innerHTML = '<p>아직 지원자가 없습니다.</p>';
-                    return;
-                }
-
-                // 지원자 목록 HTML 생성
-                let html = '<div>';
-                data.forEach(application => {
-                    html += `
-                            <div class="job-card">
-                                <div class="job-info">
-                                    <span><strong>지원자:</strong> ${application.sitterEmail}</span>
-                                    <span><strong>제안 시급:</strong> ${application.proposedHourlyRate.toLocaleString()}원</span>
-                                    <span><strong>상태:</strong> ${getApplicationStatusText(application.status)}</span>
-                                </div>
-                                <div class="job-description">
-                                    <p><strong>자기소개/지원 메시지:</strong></p>
-                                    <p>${application.coverLetter}</p>
-                                </div>
-                                <div class="job-actions">
-                                    ${application.status === 'PENDING' ? `
-                                        <button class="btn" onclick="updateApplicationStatus(${application.id}, 'ACCEPTED')">수락</button>
-                                        <button class="btn" onclick="updateApplicationStatus(${application.id}, 'REJECTED')">거절</button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `;
-                });
-                html += '</div>';
-                applicantsContent.innerHTML = html;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('applicantsContent').innerHTML = '<p>지원자 목록을 로드하는 중 오류가 발생했습니다.</p>';
+            // 지원자 목록 HTML 생성
+            let html = '<div>';
+            data.forEach(application => {
+                html += `
+                    <div class="job-card">
+                        <div class="job-info">
+                            <span><strong>지원자:</strong> ${application.sitterEmail}</span>
+                            <span><strong>제안 시급:</strong> ${application.proposedHourlyRate.toLocaleString()}원</span>
+                            <span><strong>상태:</strong> ${getApplicationStatusText(application.status)}</span>
+                        </div>
+                        <div class="job-description">
+                            <p><strong>자기소개/지원 메시지:</strong></p>
+                            <p>${application.coverLetter}</p>
+                        </div>
+                        <div class="job-actions">
+                            ${application.status === 'PENDING' ? `
+                                <button class="btn" onclick="updateApplicationStatus(${application.id}, 'ACCEPTED')">수락</button>
+                                <button class="btn" onclick="updateApplicationStatus(${application.id}, 'REJECTED')">거절</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
             });
+            html += '</div>';
+            applicantsContent.innerHTML = html;
+        } catch (error) {
+            console.error('지원자 목록 로드 오류:', error);
+            document.getElementById('applicantsContent').innerHTML = `
+                <p class="error-message">지원자 목록을 로드하는 중 오류가 발생했습니다: ${error.message}</p>
+            `;
+        }
     }
 
     // 지원서 상태 변경 (수락/거절)
-    function updateApplicationStatus(applicationId, status) {
-        const token = getToken();
-        if (!token) return;
+    async function updateApplicationStatus(applicationId, status) {
+        if (!getToken()) {
+            showTokenModal();
+            return;
+        }
 
-        fetch(`${API_URL}/job-applications/${applicationId}/status`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ status })
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('지원서 상태 변경 실패');
-                }
-                return response.json();
-            })
-            .then(data => {
+        try {
+            const result = await apiRequest(`/job-applications/${applicationId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status })
+            });
+
+            if (result) {
                 alert('지원서 상태가 성공적으로 변경되었습니다.');
                 // 지원자 목록 새로고침
-                viewApplicants(data.jobPostingId);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('지원서 상태 변경 중 오류가 발생했습니다.');
-            });
+                viewApplicants(result.jobPostingId);
+            }
+        } catch (error) {
+            console.error('상태 변경 오류:', error);
+            alert(`지원서 상태 변경 중 오류가 발생했습니다: ${error.message}`);
+        }
     }
 
     // 구인글 비활성화
-    function deactivateJobPosting(jobId) {
-        const token = getToken();
-        if (!token) return;
+    async function deactivateJobPosting(jobId) {
+        if (!getToken()) {
+            showTokenModal();
+            return;
+        }
 
         if (!confirm('정말로 이 구인글을 비활성화하시겠습니까?')) {
             return;
         }
 
-        fetch(`${API_URL}/job-postings/${jobId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('구인글 비활성화 실패');
-                }
-                return response.json();
-            })
-            .then(data => {
+        try {
+            const result = await apiRequest(`/job-postings/${jobId}`, {
+                method: 'DELETE'
+            });
+
+            if (result) {
                 alert('구인글이 성공적으로 비활성화되었습니다.');
                 // 구인글 목록 새로고침
                 loadMyJobs();
                 loadAllJobs();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('구인글 비활성화 중 오류가 발생했습니다.');
-            });
+            }
+        } catch (error) {
+            console.error('구인글 비활성화 오류:', error);
+            alert(`구인글 비활성화 중 오류가 발생했습니다: ${error.message}`);
+        }
     }
 
     // 지원서 철회
-    function withdrawApplication(applicationId) {
-        const token = getToken();
-        if (!token) return;
+    async function withdrawApplication(applicationId) {
+        if (!getToken()) {
+            showTokenModal();
+            return;
+        }
 
         if (!confirm('정말로 이 지원서를 철회하시겠습니까?')) {
             return;
         }
 
-        fetch(`${API_URL}/job-applications/${applicationId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('지원서 철회 실패');
-                }
-                return response.json();
-            })
-            .then(data => {
+        try {
+            const result = await apiRequest(`/job-applications/${applicationId}`, {
+                method: 'DELETE'
+            });
+
+            if (result) {
                 alert('지원서가 성공적으로 철회되었습니다.');
                 // 지원서 목록 새로고침
                 loadMyApplications();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('지원서 철회 중 오류가 발생했습니다.');
-            });
+            }
+        } catch (error) {
+            console.error('지원서 철회 오류:', error);
+            alert(`지원서 철회 중 오류가 발생했습니다: ${error.message}`);
+        }
     }
 
     // 구인글 목록 렌더링
     function renderJobList(jobs, containerId, isMyJobs = false) {
         const container = document.getElementById(containerId);
 
-        if (jobs.length === 0) {
+        if (!jobs || jobs.length === 0) {
             container.innerHTML = '<p>표시할 구인글이 없습니다.</p>';
             return;
         }
@@ -757,27 +912,27 @@
         let html = '';
         jobs.forEach(job => {
             html += `
-                    <div class="job-card">
-                        <div class="job-title">${job.title}</div>
-                        <div class="job-info">
-                            <span>위치: ${job.location}</span>
-                            <span>시급: ${job.hourlyRate.toLocaleString()}원</span>
-                            <span>기간: ${formatDate(job.startDate)} ~ ${formatDate(job.endDate)}</span>
-                            <span>지원자: ${job.applicationCount}명</span>
-                        </div>
-                        <div class="job-description">
-                            ${job.description.substring(0, 100)}${job.description.length > 100 ? '...' : ''}
-                        </div>
-                        <div class="job-actions">
-                            <button class="btn" onclick="viewJobDetail(${job.id})">상세 보기</button>
-                            ${!isMyJobs ? `<button class="btn" onclick="showApplyForm(${job.id})">지원하기</button>` : ''}
-                            ${isMyJobs ? `
-                                <button class="btn" onclick="viewApplicants(${job.id})">지원자 보기</button>
-                                ${job.isActive ? `<button class="btn" onclick="deactivateJobPosting(${job.id})">비활성화</button>` : ''}
-                            ` : ''}
-                        </div>
+                <div class="job-card">
+                    <div class="job-title">${job.title}</div>
+                    <div class="job-info">
+                        <span>위치: ${job.location}</span>
+                        <span>시급: ${job.hourlyRate.toLocaleString()}원</span>
+                        <span>기간: ${formatDate(job.startDate)} ~ ${formatDate(job.endDate)}</span>
+                        <span>지원자: ${job.applicationCount}명</span>
                     </div>
-                `;
+                    <div class="job-description">
+                        ${job.description.substring(0, 100)}${job.description.length > 100 ? '...' : ''}
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn" onclick="viewJobDetail(${job.id})">상세 보기</button>
+                        ${!isMyJobs ? `<button class="btn" onclick="showApplyForm(${job.id})">지원하기</button>` : ''}
+                        ${isMyJobs ? `
+                            <button class="btn" onclick="viewApplicants(${job.id})">지원자 보기</button>
+                            ${job.isActive ? `<button class="btn" onclick="deactivateJobPosting(${job.id})">비활성화</button>` : ''}
+                        ` : ''}
+                    </div>
+                </div>
+            `;
         });
 
         container.innerHTML = html;
@@ -787,7 +942,7 @@
     function renderApplicationsList(applications) {
         const container = document.getElementById('myApplicationsList');
 
-        if (applications.length === 0) {
+        if (!applications || applications.length === 0) {
             container.innerHTML = '<p>표시할 지원서가 없습니다.</p>';
             return;
         }
@@ -802,25 +957,25 @@
         let html = '';
         applications.forEach(application => {
             html += `
-                    <div class="job-card">
-                        <div class="job-title">${application.jobTitle}</div>
-                        <div class="job-info">
-                            <span>제안 시급: ${application.proposedHourlyRate.toLocaleString()}원</span>
-                            <span>상태: ${getApplicationStatusText(application.status)}</span>
-                            <span>지원일: ${formatDate(application.createdAt)}</span>
-                        </div>
-                        <div class="job-description">
-                            <p><strong>자기소개/지원 메시지:</strong></p>
-                            <p>${application.coverLetter.substring(0, 100)}${application.coverLetter.length > 100 ? '...' : ''}</p>
-                        </div>
-                        <div class="job-actions">
-                            <button class="btn" onclick="viewJobDetail(${application.jobPostingId})">구인글 보기</button>
-                            ${application.status === 'PENDING' ? `
-                                <button class="btn" onclick="withdrawApplication(${application.id})">지원 철회</button>
-                            ` : ''}
-                        </div>
+                <div class="job-card">
+                    <div class="job-title">${application.jobTitle}</div>
+                    <div class="job-info">
+                        <span>제안 시급: ${application.proposedHourlyRate.toLocaleString()}원</span>
+                        <span>상태: ${getApplicationStatusText(application.status)}</span>
+                        <span>지원일: ${formatDate(application.createdAt)}</span>
                     </div>
-                `;
+                    <div class="job-description">
+                        <p><strong>자기소개/지원 메시지:</strong></p>
+                        <p>${application.coverLetter.substring(0, 100)}${application.coverLetter.length > 100 ? '...' : ''}</p>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn" onclick="viewJobDetail(${application.jobPostingId})">구인글 보기</button>
+                        ${application.status === 'PENDING' ? `
+                            <button class="btn" onclick="withdrawApplication(${application.id})">지원 철회</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
         });
 
         container.innerHTML = html;
@@ -847,7 +1002,6 @@
         };
         return statusTexts[status] || status;
     }
-
 </script>
 </body>
 </html>
