@@ -25,6 +25,7 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _token != null;
   bool get isLoading => _isLoading; // 로딩 상태 Getter
   bool get isAuthenticating => _isAuthenticating; // 인증 처리 중 상태 Getter
+  bool get isLoggedIn => _token != null;
 
   // 로그인 처리
   Future<bool> login(String email, String password) async {
